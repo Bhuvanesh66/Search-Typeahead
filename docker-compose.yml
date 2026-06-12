@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Distributed cache (3 Redis nodes) + queue for the Search Typeahead System.
+#
+# Each Redis instance is an independent logical cache node. The backend's
+# consistent-hash ring routes each `suggest:<prefix>` key to exactly one node.
+# The queue (Redis Streams) lives on redis-0 by default.
+#
+#   docker compose up -d         # start all three cache nodes
+#   docker compose down          # stop and remove
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  redis-0:
+    image: redis:7-alpine
+    container_name: typeahead-redis-0
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis0-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-1:
+    image: redis:7-alpine
+    container_name: typeahead-redis-1
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis1-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-2:
+    image: redis:7-alpine
+    container_name: typeahead-redis-2
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis2-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis0-data:
+  redis1-data:
+  redis2-data:

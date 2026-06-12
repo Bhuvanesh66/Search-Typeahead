@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+*.tsbuildinfo
+
+# Environment
+.env
+**/.env
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+**/coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.commit-plan.sh
