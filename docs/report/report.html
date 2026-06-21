@@ -174,6 +174,15 @@
   .badge { display:inline-block; font-size:7.4pt; font-weight:700; padding:1.5px 9px; border-radius:20px;
     border:1px solid #cfe9da; color:var(--ok); background:var(--ok-soft); letter-spacing:.3px; }
   .small { font-size:8.3pt; color:var(--muted); }
+  /* numbered step lists for flow walkthroughs */
+  ol.steps { margin:5px 0 9px; padding-left:0; counter-reset:s; list-style:none; }
+  ol.steps li { position:relative; padding:3px 0 3px 26px; font-size:9pt; color:var(--ink-2); break-inside:avoid; }
+  ol.steps li::before {
+    counter-increment:s; content:counter(s);
+    position:absolute; left:0; top:2.5px; width:17px; height:17px; border-radius:50%;
+    background:var(--teal-soft); color:var(--teal-d); border:1px solid #cfe6e2;
+    font-size:7.6pt; font-weight:700; text-align:center; line-height:16px;
+  }
   figure { margin:10px 0; text-align:center; break-inside:avoid; }
   figcaption { font-size:8pt; color:var(--muted); margin-top:6px; }
   .footer { margin-top:16px; text-align:center; color:var(--muted); font-size:8pt;
@@ -316,19 +325,53 @@
 </div>
 
 <div class="grp">
-  <h3>The flows</h3>
-  <div class="grid2">
-    <div class="card"><h4>Suggest (read)</h4><p>normalize → ring → cache <code>GET</code>. Hit → return (≈1–3 ms). Miss → Trie top-K → populate cache → return.</p></div>
-    <div class="card"><h4>Search (write)</h4><p>return <code>"Searched"</code> instantly → enqueue. Worker aggregates duplicates → writes counts → writes fresh top-K through to cache → feeds trending.</p></div>
-    <div class="card"><h4>Trending</h4><p>each period: recent score ×0.9 decay + new activity, blended with popularity, published to the shared cache.</p></div>
-    <div class="card"><h4>Failure handling</h4><p>dead node → miss → Trie rebuild. Worker crash → un-acked entries replay. Queue down → <code>/search</code> still 200.</p></div>
+  <h3>Detailed flow walkthroughs</h3>
+
+  <h4>A · Suggestion read path (the hot path)</h4>
+  <ol class="steps">
+    <li>The React UI fires a request only after the user pauses typing (debounce, ~150 ms), so six keystrokes
+      produce one request, not six.</li>
+    <li>The API <strong>normalizes</strong> the prefix (trim → lowercase → collapse whitespace → Unicode NFC)
+      and builds the cache key <code>suggest:&lt;prefix&gt;</code>.</li>
+    <li>The key is hashed onto the <strong>consistent-hash ring</strong>, which returns the single Redis node
+      that owns it. The API issues one <code>GET</code> to that node.</li>
+    <li><strong>Cache hit</strong> (the common case, ~98%): the precomputed top-K JSON is returned directly in
+      ≈1–3 ms. No computation, no tree traversal.</li>
+    <li><strong>Cache miss:</strong> the API asks the in-memory <strong>Trie</strong>, which walks L nodes to the
+      prefix and returns that node's precomputed <code>topSuggestions</code> in O(L + K). The API writes that
+      list back into the cache (with TTL) so the next read is a hit, then returns it.</li>
+  </ol>
+
+  <h4>B · Search write path (decoupled &amp; batched)</h4>
+  <ol class="steps">
+    <li>On <code>POST /search</code> the API does the minimum: it returns <code>{"message":"Searched"}</code>
+      <strong>immediately</strong> and appends the query to a <strong>Redis Stream</strong> (fire-and-forget,
+      so the user never waits on counting).</li>
+    <li>The <strong>batch worker</strong> consumes the stream in blocks via a consumer group, accumulating events
+      in an in-memory aggregator that <strong>collapses duplicates</strong> (e.g. 500 searches of one query become
+      a single entry with delta = 500).</li>
+    <li>On a <strong>flush</strong> (when the buffer hits the size threshold <em>or</em> the time window elapses) the
+      worker writes the aggregated counts to the <strong>count store</strong>, updates the Trie's counts and top-K,
+      <strong>writes the refreshed top-K back through to the cache</strong>, and feeds the trending engine.</li>
+    <li>Only <strong>after</strong> the durable write does it <code>XACK</code> the stream entries — guaranteeing
+      at-least-once processing, so a crash replays rather than loses events.</li>
+  </ol>
+
+  <div class="grid2" style="margin-top:8px">
+    <div class="card"><h4>C · Trending</h4><p>Every decay period the worker multiplies each query's recent score
+      by 0.9, adds new activity, blends it with normalized popularity, and publishes the ranked list to the shared
+      <code>trending</code> cache key. A short-lived spike therefore fades geometrically instead of dominating forever.</p></div>
+    <div class="card"><h4>D · Failure handling</h4><p>A dead cache node → miss → Trie rebuild (no outage). A worker
+      crash → un-acked stream entries replay on restart. The queue being unreachable → <code>/search</code> still
+      returns 200. Each path degrades gracefully rather than failing the user.</p></div>
   </div>
 </div>
 
 <div class="callout block"><span class="t">Cross-process consistency.</span>
 The API and worker are separate processes with separate Tries. The worker <strong>writes fresh top-K through
 to the shared Redis cache</strong> on every flush, so the API serves up-to-date suggestions without owning
-the live counts — the cache is the single cross-process serving surface.</div>
+the live counts — the cache is the single cross-process serving surface. (This subtlety was the root of one
+QA-fixed bug: the API must <em>not</em> cache an empty result, or it would clobber the worker's write-through.)</div>
 
 <!-- ═════════════ 2. DATASET ═════════════ -->
 <div class="block">
@@ -409,28 +452,69 @@ npm run dev</pre>
   </div>
 </div>
 
-<div class="grid3 grp">
-  <div class="card"><h4>POST /search</h4>
-    <pre style="margin:5px 0"><span class="c">// req</span>
-{<span class="k">"query"</span>:<span class="g">"iphone 15"</span>}
-<span class="c">// 200</span>
-{<span class="k">"message"</span>:<span class="g">"Searched"</span>}</pre>
-    <p>400 on empty query. Fire-and-forget → 200 even if queue is down.</p>
+<div class="grp">
+  <h4>GET /suggest — parameters &amp; rules</h4>
+  <table class="data" style="margin-top:4px">
+    <tr><th>Param</th><th>Required</th><th>Default</th><th>Rules</th></tr>
+    <tr><td><code>q</code></td><td>Yes</td><td>—</td><td>The prefix, 0–100 chars (truncated beyond). Missing → <code>400</code>.</td></tr>
+    <tr><td><code>limit</code></td><td>No</td><td>10</td><td>Clamped to 1–10. The response is always capped at 10 suggestions.</td></tr>
+  </table>
+  <p class="small">Each suggestion carries <code>query</code>, <code>count</code> (all-time) and <code>score</code>
+  (ranking value). The response also reports <code>source</code> (<code>cache</code> / <code>trie</code> /
+  <code>empty</code>), the owning <code>node</code>, and measured <code>latencyMs</code> for transparency.</p>
+</div>
+
+<div class="grid2 grp">
+  <div>
+    <h4>POST /search</h4>
+    <pre style="margin:5px 0"><span class="c">// request body</span>
+{ <span class="k">"query"</span>: <span class="g">"iphone 15"</span> }
+<span class="c">// 200 OK</span>
+{ <span class="k">"message"</span>: <span class="g">"Searched"</span> }</pre>
+    <p class="small">Records a search and returns the fixed dummy message. The query is validated (non-empty
+    after trim, ≤ 200 chars; otherwise <code>400</code>), then enqueued <strong>fire-and-forget</strong> — the
+    handler never awaits the queue, so it returns <code>200</code> in ≈0.2 s even if the queue Redis is down.
+    Repeated identical submissions are aggregated by the worker before a single write.</p>
   </div>
-  <div class="card"><h4>GET /cache/debug</h4>
+  <div>
+    <h4>GET /cache/debug — full response</h4>
     <pre style="margin:5px 0">{
- <span class="k">"owningNode"</span>:<span class="g">"node-2"</span>,
- <span class="k">"status"</span>:<span class="g">"hit"</span>,
- <span class="k">"ringPosition"</span>:284719
+  <span class="k">"prefix"</span>:<span class="g">"iph"</span>, <span class="k">"normalizedKey"</span>:<span class="g">"suggest:iph"</span>,
+  <span class="k">"owningNode"</span>:<span class="g">"cache-node-2"</span>,
+  <span class="k">"virtualNodeHit"</span>:<span class="g">"cache-node-2#37"</span>,
+  <span class="k">"status"</span>:<span class="g">"hit"</span>, <span class="k">"ttlRemainingMs"</span>:41200,
+  <span class="k">"ringPosition"</span>:2847193021
 }</pre>
-    <p>Shows consistent-hash routing &amp; hit/miss live.</p>
+    <p class="small">A teaching/observability endpoint: it shows exactly which physical node and which
+    <em>virtual</em> node a prefix maps to, the hit/miss status, and remaining TTL — letting a grader watch
+    consistent hashing route different prefixes to different nodes live.</p>
   </div>
-  <div class="card"><h4>GET /trending</h4>
-    <pre style="margin:5px 0">{<span class="k">"trending"</span>:[
- {<span class="k">"query"</span>:<span class="g">"breaking…"</span>,
-  <span class="k">"recentScore"</span>:13.5}
+</div>
+
+<div class="grid2 grp">
+  <div>
+    <h4>GET /trending</h4>
+    <pre style="margin:5px 0">{ <span class="k">"trending"</span>: [
+  { <span class="k">"query"</span>:<span class="g">"breaking news today"</span>,
+    <span class="k">"totalCount"</span>:15, <span class="k">"recentScore"</span>:13.5,
+    <span class="k">"blendedScore"</span>:0.30 },
+  { <span class="k">"query"</span>:<span class="g">"flight air shop"</span>,
+    <span class="k">"totalCount"</span>:1017481, <span class="k">"recentScore"</span>:0 }
 ]}</pre>
-    <p>Recency-aware; recent burst rises then decays.</p>
+    <p class="small">Returns the recency-aware ranking. Each item exposes both signals (all-time
+    <code>totalCount</code> and decayed <code>recentScore</code>) plus the final <code>blendedScore</code>, so a
+    recent burst can outrank a far more popular historical query — then fade as it decays.</p>
+  </div>
+  <div>
+    <h4>GET /metrics &amp; /healthz</h4>
+    <pre style="margin:5px 0"><span class="c">// /metrics (abridged)</span>
+{ <span class="k">"derived"</span>:{ <span class="k">"cache_hit_ratio"</span>:0.98,
+   <span class="k">"write_reduction_factor"</span>:42.9,
+   <span class="k">"writes_avoided_total"</span>:1300 } }
+<span class="c">// /healthz</span>
+{ <span class="k">"status"</span>:<span class="g">"ok"</span>, <span class="k">"trieSize"</span>:120000 }</pre>
+    <p class="small">Operational snapshot: counters (hits, misses, DB reads/writes), gauges (queue depth, Trie
+    size), latency percentiles, and the derived hit-ratio / write-reduction figures used in §5.</p>
   </div>
 </div>
 
@@ -446,6 +530,35 @@ npm run dev</pre>
     <tr><td><strong>Write reduction</strong></td><td>Batching (aggregate duplicates)</td><td>N searches of a query → 1 write/window. Stale reads, <em>not</em> data loss. Optional sampling for extreme scale.</td></tr>
     <tr><td><strong>Ranking</strong></td><td>α·norm(total)+(1−α)·decayed recent</td><td>α=1 → popularity (basic); α≈0.7 → recency. Decay makes a spike fade so it can't dominate forever.</td></tr>
   </table>
+</div>
+
+<div class="grp">
+  <h3>Reasoning behind the key decisions</h3>
+  <p class="small"><strong>Why a Trie over SQL <code>LIKE 'prefix%'</code>?</strong> A SQL prefix scan must
+  examine and rank every matching row on each request. The Trie navigates to the prefix in O(L) and — because
+  each node already holds its top-K — returns the answer in O(K) with no scan or sort. We pay a one-time build
+  cost on boot (the Trie is rebuildable from the store) to make every read trivial.</p>
+  <p class="small"><strong>Why cache top-K per prefix instead of querying the Trie each time?</strong> Reads dominate
+  (every keystroke is a read; ~10× the writes). Turning a read into a single Redis <code>GET</code> makes it
+  ~1 ms and lets us scale reads horizontally by adding cache nodes. The Trie becomes a fallback touched only on a
+  miss, not the hot path.</p>
+  <p class="small"><strong>Why consistent hashing, not <code>hash % N</code>?</strong> With modulo, changing the
+  node count (a failure, or scaling out) remaps almost every key at once — a cache-wide miss storm. A hash ring
+  remaps only the ~1/N keys near the changed node. <strong>Virtual nodes</strong> (~150 per physical node) are
+  what make the load even and the redistribution smooth; with only three ring points, load would be lumpy and
+  removing one node would dump its whole arc onto a single neighbour.</p>
+  <p class="small"><strong>Why Redis Streams for the queue?</strong> It is a durable, append-only log with consumer
+  groups, so a crashed worker resumes from the pending list (at-least-once). It adds <em>no</em> new infrastructure
+  since Redis already backs the cache. An in-memory queue would lose data on crash; a full job framework (BullMQ)
+  adds concepts we don't need.</p>
+  <p class="small"><strong>Why batching for write reduction?</strong> The system is genuinely read- and write-heavy,
+  so the lever is to cut writes. Batching aggregates repeated queries into one write per window. Crucially it causes
+  only <em>stale reads, never data loss</em> — raw counts are always recorded; only the derived suggestion data
+  lags. (Sampling is available as a second lever for extreme scale, trading exactness for even fewer writes.)</p>
+  <p class="small"><strong>Why decay-blended ranking?</strong> Pure all-time popularity can never surface a breaking
+  query, and pure recency forgets durable favourites. Blending normalized popularity with an exponentially-decayed
+  recent score gives both; the decay guarantees a one-day spike fades geometrically (×0.9 each period) so it cannot
+  dominate forever. Setting α = 1 cleanly recovers the basic popularity-only mode.</p>
 </div>
 
 <div class="grid2 grp">
