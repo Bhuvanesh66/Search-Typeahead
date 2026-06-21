@@ -4,160 +4,180 @@
 <meta charset="utf-8" />
 <title>Search Typeahead System — Project Report</title>
 <style>
-  /* ── Page setup ─────────────────────────────────────────────────────────── */
-  @page { size: A4; margin: 13mm 13mm 14mm 13mm; }
-  @page :first { margin: 0; }
+  /* ════════════════════════════════════════════════════════════════════════
+     Design language: minimal · elegant · technical.
+     Near-black ink on warm paper, one restrained slate accent, hairline rules.
+     No gradients, no filled colour blocks, no flashy effects.
+  ════════════════════════════════════════════════════════════════════════ */
+  @page { size:A4; margin:16mm 15mm 15mm 15mm; }
+  @page :first { margin:0; }
 
   :root {
-    --ink:#1b2230; --muted:#5d6675; --soft:#8b93a3; --line:#e6eaf1;
-    --brand:#3b5bdb; --brand-d:#2640b0; --brand-2:#5b8cff;
-    --accent:#ff6b3d; --ok:#159a55; --okbg:#edfaf2;
-    --bg-soft:#f5f8fd; --bg-soft2:#eef3fc;
-    --code-bg:#1a2030; --code-ink:#e7eaf2; --code-g:#86e6ad; --code-b:#84acff; --code-c:#828ca6;
+    --ink:#16181d;          /* near-black body text */
+    --ink-2:#3a3f48;        /* secondary */
+    --muted:#6b7280;        /* captions */
+    --faint:#9aa0aa;
+    --paper:#ffffff;
+    --rule:#e4e6ea;         /* hairline */
+    --rule-2:#d6d9df;
+    --accent:#2f5d62;       /* deep slate-teal — the only colour */
+    --accent-soft:#eef3f3;
+    --tint:#f7f8f9;         /* table zebra / soft fills */
+    --code-bg:#f4f5f7;
+    --ok:#3f6b53;
   }
   * { box-sizing:border-box; }
   html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   body {
     font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;
-    color:var(--ink); font-size:9.6pt; line-height:1.46; margin:0;
+    color:var(--ink); font-size:9.6pt; line-height:1.5; margin:0;
+    background:var(--paper);
   }
-  h2,h3,h4 { line-height:1.2; }
   p { margin:5px 0; }
-  a { color:var(--brand); text-decoration:none; }
+  a { color:var(--accent); text-decoration:none; }
+  strong { color:var(--ink); font-weight:600; }
+  em { color:var(--ink-2); }
   code {
     font-family:"Cascadia Code","Consolas",monospace; font-size:8.4pt;
-    background:#eef1f8; padding:.5px 4px; border-radius:3px; color:#2b3a67;
+    background:var(--code-bg); padding:.5px 4px; border-radius:3px; color:#33363d;
+    border:1px solid var(--rule);
   }
 
-  /* ── Cover (compact, full-bleed) ────────────────────────────────────────── */
+  /* ── Cover: editorial, restrained ─────────────────────────────────────── */
   .cover {
     height:297mm; width:100%; page-break-after:always; position:relative;
-    overflow:hidden; color:#fff; padding:30mm 22mm 22mm;
-    background:linear-gradient(150deg,#0e1530 0%,#1b2c63 48%,#314aa0 100%);
-    display:flex; flex-direction:column; justify-content:space-between;
+    background:var(--paper); color:var(--ink);
+    padding:34mm 24mm 22mm; display:flex; flex-direction:column;
+    justify-content:space-between;
+    border-top:6px solid var(--accent);
   }
-  .cover .g1,.cover .g2 { position:absolute; border-radius:50%; }
-  .cover .g1 { width:480px;height:480px; top:-130px;right:-120px;
-    background:radial-gradient(circle,rgba(91,140,255,.5),transparent 65%); }
-  .cover .g2 { width:360px;height:360px; bottom:-110px;left:-90px;
-    background:radial-gradient(circle,rgba(255,107,61,.32),transparent 65%); }
-  .cover .eyebrow { text-transform:uppercase; letter-spacing:4px; font-size:9.5pt;
-    color:#9db4ff; font-weight:600; }
-  .cover h1 { font-size:40pt; line-height:1.05; margin:12px 0 12px; font-weight:800; color:#fff; }
-  .cover .sub { font-size:12.5pt; color:#c8d4f6; max-width:560px; line-height:1.5; }
-  .cover .pills { margin-top:22px; display:flex; flex-wrap:wrap; gap:7px; }
-  .cover .pill { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22);
-    padding:5px 13px; border-radius:30px; font-size:9pt; color:#eaf0ff; }
-  .cover .kpis { display:flex; gap:10px; margin:26px 0 0; }
-  .cover .kc { flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16);
-    border-radius:12px; padding:12px 10px; text-align:center; }
-  .cover .kc b { display:block; font-size:18pt; font-weight:800; color:#fff; }
-  .cover .kc span { font-size:7.6pt; color:#a9bbf0; text-transform:uppercase; letter-spacing:.4px; }
-  .cover .meta { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
-    border-radius:12px; padding:14px 20px; }
+  .cover .top .kicker {
+    font-size:9pt; letter-spacing:3.5px; text-transform:uppercase;
+    color:var(--accent); font-weight:600;
+  }
+  .cover h1 {
+    font-size:33pt; font-weight:700; line-height:1.08; margin:16px 0 0;
+    letter-spacing:-.5px; color:var(--ink);
+  }
+  .cover .rule { height:1px; background:var(--rule-2); margin:20px 0; }
+  .cover .sub {
+    font-size:12pt; color:var(--ink-2); max-width:540px; line-height:1.55;
+  }
+  .cover .stack {
+    margin-top:20px; font-size:9pt; color:var(--muted); letter-spacing:.3px;
+  }
+  .cover .stack b { color:var(--ink-2); font-weight:600; }
+
+  .cover .metrics { display:flex; gap:0; margin-top:26px; border:1px solid var(--rule); border-radius:8px; overflow:hidden; }
+  .cover .metrics .m { flex:1; padding:13px 12px; text-align:center; border-right:1px solid var(--rule); }
+  .cover .metrics .m:last-child { border-right:none; }
+  .cover .metrics .m b { display:block; font-size:16pt; font-weight:700; color:var(--accent); letter-spacing:-.5px; }
+  .cover .metrics .m span { font-size:7.4pt; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+
+  .cover .meta { border-top:1px solid var(--rule); padding-top:16px; }
   .cover .meta table { width:100%; border-collapse:collapse; }
-  .cover .meta td { padding:4px 0; font-size:10pt; color:#dce5ff; }
-  .cover .meta td:first-child { color:#9db4ff; width:120px; }
-
-  /* ── Content shell ──────────────────────────────────────────────────────── */
-  .body { padding:0; }
-
-  /* section header band — gives strong visual rhythm with zero wasted space */
-  .sec {
-    display:flex; align-items:center; gap:11px; margin:0 0 9px;
-    padding:8px 12px; border-radius:9px;
-    background:linear-gradient(95deg,var(--brand) 0%,var(--brand-2) 100%);
-    color:#fff; break-after:avoid;
+  .cover .meta td { padding:4px 0; font-size:10pt; color:var(--ink-2); }
+  .cover .meta td:first-child {
+    color:var(--muted); width:140px; font-size:8.4pt; text-transform:uppercase; letter-spacing:.6px;
   }
-  .sec .no { font-size:15pt; font-weight:800; opacity:.55; }
-  .sec h2 { font-size:13.5pt; margin:0; color:#fff; font-weight:700; }
-  .sec .tag { margin-left:auto; font-size:8pt; background:rgba(255,255,255,.18);
-    padding:3px 10px; border-radius:20px; }
-  /* keep a section's first block with its header */
+
+  /* ── Section headers: numbered, hairline-ruled (no filled bands) ──────── */
+  .sec {
+    display:flex; align-items:baseline; gap:12px; margin:0 0 4px;
+    padding-bottom:7px; border-bottom:1.5px solid var(--ink);
+    break-after:avoid;
+  }
+  .sec .no { font-size:10pt; font-weight:700; color:var(--accent); letter-spacing:1px; }
+  .sec h2 { font-size:14pt; margin:0; font-weight:650; letter-spacing:-.2px; color:var(--ink); }
+  .sec .tag { margin-left:auto; font-size:8pt; color:var(--muted); letter-spacing:.4px; }
   .block { break-inside:avoid; }
   .grp { break-inside:avoid; margin-bottom:11px; }
 
-  h3 { font-size:10.8pt; margin:13px 0 5px; color:var(--brand-d); break-after:avoid; }
-  h4 { font-size:9.8pt; margin:0 0 4px; color:var(--brand-d); }
-  .lead { color:var(--muted); margin:0 0 10px; }
+  h3 { font-size:10.4pt; margin:13px 0 5px; color:var(--ink); font-weight:650; break-after:avoid;
+       letter-spacing:-.1px; }
+  h4 { font-size:9.6pt; margin:0 0 4px; color:var(--accent); font-weight:650; }
+  .lead { color:var(--ink-2); margin:8px 0 11px; }
 
-  /* ── Tables ─────────────────────────────────────────────────────────────── */
-  table.data { width:100%; border-collapse:collapse; margin:8px 0 11px; font-size:8.9pt;
-    break-inside:avoid; }
-  table.data th { background:var(--brand-d); color:#fff; text-align:left; padding:6px 9px; font-weight:600; }
-  table.data td { padding:5px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
-  table.data tr:nth-child(even) td { background:var(--bg-soft); }
+  /* ── Tables: clean, hairline, no heavy fills ──────────────────────────── */
+  table.data { width:100%; border-collapse:collapse; margin:8px 0 11px; font-size:8.9pt; break-inside:avoid; }
+  table.data th {
+    text-align:left; padding:6px 9px; font-weight:650; color:var(--ink);
+    border-bottom:1.5px solid var(--ink); background:transparent;
+  }
+  table.data td { padding:5px 9px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2); }
+  table.data tr:nth-child(even) td { background:var(--tint); }
+  table.data td strong { color:var(--ink); }
   table.data td.num { text-align:right; font-variant-numeric:tabular-nums; }
 
-  /* ── Callouts ───────────────────────────────────────────────────────────── */
-  .callout { border-left:3px solid var(--brand-2); background:var(--bg-soft);
-    padding:8px 12px; border-radius:0 7px 7px 0; margin:10px 0; font-size:9pt; break-inside:avoid; }
-  .callout.ok { border-left-color:var(--ok); background:var(--okbg); }
-  .callout.warn { border-left-color:var(--accent); background:#fff4ef; }
-  .callout .t { font-weight:700; }
+  /* ── Callouts: left hairline + soft tint, minimal ─────────────────────── */
+  .callout {
+    border:1px solid var(--rule); border-left:3px solid var(--accent);
+    background:var(--tint); padding:8px 12px; border-radius:0 6px 6px 0;
+    margin:10px 0; font-size:9pt; break-inside:avoid; color:var(--ink-2);
+  }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:#b06a3b; }
+  .callout .t { font-weight:650; color:var(--ink); }
 
-  /* ── Code ───────────────────────────────────────────────────────────────── */
-  pre { background:var(--code-bg); color:var(--code-ink); padding:10px 12px; border-radius:8px;
-    font-family:"Cascadia Code","Consolas",monospace; font-size:8pt; line-height:1.45;
-    white-space:pre-wrap; word-break:break-word; margin:7px 0; break-inside:avoid; }
-  pre .k{color:var(--code-b);} pre .g{color:var(--code-g);} pre .c{color:#828ca6;}
+  /* ── Code: light, bordered (no dark slab) ─────────────────────────────── */
+  pre {
+    background:var(--code-bg); color:#2b2e35; padding:9px 12px; border-radius:6px;
+    border:1px solid var(--rule); font-family:"Cascadia Code","Consolas",monospace;
+    font-size:8pt; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+    margin:7px 0; break-inside:avoid;
+  }
+  pre .k{color:#2f5d62;font-weight:600;} pre .g{color:#7a5230;} pre .c{color:#9aa0aa;}
 
-  /* ── Cards / grids ──────────────────────────────────────────────────────── */
+  /* ── Cards / grids ────────────────────────────────────────────────────── */
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
-  .card { border:1px solid var(--line); border-radius:9px; padding:9px 12px; break-inside:avoid; }
+  .card { border:1px solid var(--rule); border-radius:7px; padding:9px 12px; break-inside:avoid; background:var(--paper); }
   .card h4 { margin-top:0; }
   .card p { margin:3px 0; font-size:8.7pt; color:var(--muted); }
 
-  /* inline KPI strip inside content */
+  /* ── KPI strip: bordered, accent numerals ─────────────────────────────── */
   .kpi-row { display:flex; gap:9px; margin:10px 0; }
-  .kpi { flex:1; border:1px solid var(--line); border-radius:10px; padding:10px 8px;
-    text-align:center; background:var(--bg-soft); break-inside:avoid; }
-  .kpi .v { font-size:17pt; font-weight:800; color:var(--brand); line-height:1; }
-  .kpi .l { font-size:7.6pt; color:var(--muted); margin-top:5px; text-transform:uppercase; letter-spacing:.4px; }
+  .kpi { flex:1; border:1px solid var(--rule); border-radius:7px; padding:10px 8px; text-align:center; break-inside:avoid; }
+  .kpi .v { font-size:16pt; font-weight:700; color:var(--accent); line-height:1; letter-spacing:-.5px; }
+  .kpi .l { font-size:7.4pt; color:var(--muted); margin-top:5px; text-transform:uppercase; letter-spacing:.5px; }
   .kpi .s { font-size:7.4pt; color:var(--ok); margin-top:2px; }
 
-  .badge { display:inline-block; font-size:7.4pt; font-weight:700; padding:1px 7px; border-radius:18px; }
-  .badge.pass { background:#e2f6ec; color:var(--ok); }
+  .badge { display:inline-block; font-size:7.4pt; font-weight:650; padding:1px 8px; border-radius:4px;
+    border:1px solid var(--rule-2); color:var(--ok); background:var(--paper); }
   .small { font-size:8.3pt; color:var(--muted); }
-  figure { margin:8px 0; text-align:center; break-inside:avoid; }
-  figcaption { font-size:8pt; color:var(--muted); margin-top:4px; }
-  .divider { height:1px; background:var(--line); margin:14px 0; }
-
-  /* two-column flow for dense text sections */
-  .cols2 { column-count:2; column-gap:16px; }
-  .cols2 .card { break-inside:avoid; margin-bottom:10px; }
-
-  .footer { margin-top:14px; text-align:center; color:var(--soft); font-size:8pt;
-    border-top:1px solid var(--line); padding-top:8px; }
+  figure { margin:10px 0; text-align:center; break-inside:avoid; }
+  figcaption { font-size:8pt; color:var(--muted); margin-top:6px; }
+  .footer { margin-top:16px; text-align:center; color:var(--faint); font-size:8pt;
+    border-top:1px solid var(--rule); padding-top:9px; letter-spacing:.3px; }
 </style>
 </head>
 <body>
 
-<!-- ───────── COVER ───────── -->
+<!-- ═════════════ COVER ═════════════ -->
 <section class="cover">
-  <div class="g1"></div><div class="g2"></div>
-  <div>
-    <div class="eyebrow">High-Level Design · Project Report</div>
-    <h1>Search Typeahead<br/>System</h1>
+  <div class="top">
+    <div class="kicker">High-Level Design · Project Report</div>
+    <h1>Search Typeahead System</h1>
+    <div class="rule"></div>
     <div class="sub">A distributed, low-latency search autocomplete engine — Trie-backed suggestions,
       a consistent-hashed Redis cache, batched writes, and recency-aware trending.</div>
-    <div class="pills">
-      <span class="pill">Node.js + TypeScript</span><span class="pill">React</span>
-      <span class="pill">Redis × 3</span><span class="pill">Consistent Hashing</span>
-      <span class="pill">Redis Streams</span><span class="pill">Trie + Top-K</span>
+    <div class="stack">
+      <b>Stack</b>&nbsp;&nbsp;Node.js · TypeScript · React · Redis × 3 · Consistent Hashing ·
+      Redis Streams · Augmented Trie
     </div>
-    <div class="kpis">
-      <div class="kc"><b>3.3ms</b><span>Suggest p50</span></div>
-      <div class="kc"><b>~98%</b><span>Cache hit ratio</span></div>
-      <div class="kc"><b>43×</b><span>Write reduction</span></div>
-      <div class="kc"><b>120k</b><span>Queries</span></div>
-      <div class="kc"><b>40/40</b><span>Tests pass</span></div>
+    <div class="metrics">
+      <div class="m"><b>3.3 ms</b><span>Suggest p50</span></div>
+      <div class="m"><b>~98%</b><span>Cache hit ratio</span></div>
+      <div class="m"><b>43×</b><span>Write reduction</span></div>
+      <div class="m"><b>120k</b><span>Queries</span></div>
+      <div class="m"><b>40/40</b><span>Tests pass</span></div>
     </div>
   </div>
+
   <div class="meta">
     <table>
       <tr><td>Author</td><td>Bhuvanesh M S</td></tr>
+      <tr><td>Roll Number</td><td>24BCS10134</td></tr>
       <tr><td>Course</td><td>High-Level Design (HLD) — Trimester 8</td></tr>
       <tr><td>Repository</td><td>github.com/Bhuvanesh66/Search-Typeahead</td></tr>
       <tr><td>Report covers</td><td>Architecture · Dataset · API · Design Trade-offs · Performance</td></tr>
@@ -167,7 +187,7 @@
 
 <div class="body">
 
-<!-- ───────── 1. ARCHITECTURE ───────── -->
+<!-- ═════════════ 1. ARCHITECTURE ═════════════ -->
 <div class="block">
   <div class="sec"><span class="no">01</span><h2>System Overview &amp; Architecture</h2><span class="tag">Components · Flows · Diagram</span></div>
   <p class="lead">A prefix's suggestions are a <strong>precomputed top-K list keyed by that prefix</strong> —
@@ -180,69 +200,70 @@
 <figure class="block">
   <svg width="700" height="350" viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial" font-size="11">
     <defs>
-      <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#5d6675"/></marker>
-      <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#3b5bdb"/></marker>
-      <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#159a55"/></marker>
+      <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#6b7280"/></marker>
+      <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#2f5d62"/></marker>
+      <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#3f6b53"/></marker>
     </defs>
-    <rect x="16" y="140" width="112" height="70" rx="9" fill="#eef2ff" stroke="#3b5bdb"/>
-    <text x="72" y="168" text-anchor="middle" font-weight="700">React UI</text>
-    <text x="72" y="184" text-anchor="middle" font-size="8" fill="#5d6675">debounced box</text>
-    <text x="72" y="196" text-anchor="middle" font-size="8" fill="#5d6675">dropdown · trending</text>
+    <!-- boxes: white fill, hairline strokes, single accent -->
+    <rect x="16" y="140" width="112" height="70" rx="7" fill="#ffffff" stroke="#2f5d62"/>
+    <text x="72" y="168" text-anchor="middle" font-weight="700" fill="#16181d">React UI</text>
+    <text x="72" y="184" text-anchor="middle" font-size="8" fill="#6b7280">debounced box</text>
+    <text x="72" y="196" text-anchor="middle" font-size="8" fill="#6b7280">dropdown · trending</text>
 
-    <rect x="180" y="120" width="120" height="110" rx="9" fill="#fff" stroke="#3b5bdb" stroke-width="1.4"/>
-    <text x="240" y="140" text-anchor="middle" font-weight="700">API tier</text>
-    <text x="240" y="157" text-anchor="middle" font-size="8" fill="#5d6675">/suggest · /search</text>
-    <text x="240" y="171" text-anchor="middle" font-size="8" fill="#5d6675">/cache/debug</text>
-    <text x="240" y="185" text-anchor="middle" font-size="8" fill="#5d6675">/trending</text>
-    <text x="240" y="199" text-anchor="middle" font-size="8" fill="#5d6675">/metrics</text>
+    <rect x="180" y="120" width="120" height="110" rx="7" fill="#ffffff" stroke="#2f5d62" stroke-width="1.4"/>
+    <text x="240" y="140" text-anchor="middle" font-weight="700" fill="#16181d">API tier</text>
+    <text x="240" y="157" text-anchor="middle" font-size="8" fill="#6b7280">/suggest · /search</text>
+    <text x="240" y="171" text-anchor="middle" font-size="8" fill="#6b7280">/cache/debug</text>
+    <text x="240" y="185" text-anchor="middle" font-size="8" fill="#6b7280">/trending</text>
+    <text x="240" y="199" text-anchor="middle" font-size="8" fill="#6b7280">/metrics</text>
 
-    <circle cx="445" cy="80" r="40" fill="#f5f8fd" stroke="#3b5bdb"/>
-    <text x="445" y="77" text-anchor="middle" font-size="9.5" font-weight="700">Hash</text>
-    <text x="445" y="90" text-anchor="middle" font-size="9.5" font-weight="700">Ring</text>
-    <text x="445" y="134" text-anchor="middle" font-size="7.6" fill="#5d6675">virtual nodes</text>
+    <circle cx="445" cy="80" r="40" fill="#ffffff" stroke="#2f5d62"/>
+    <text x="445" y="77" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181d">Hash</text>
+    <text x="445" y="90" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181d">Ring</text>
+    <text x="445" y="134" text-anchor="middle" font-size="7.6" fill="#6b7280">virtual nodes</text>
 
-    <rect x="565" y="28" width="118" height="30" rx="6" fill="#fdecea" stroke="#d93636"/>
-    <text x="624" y="48" text-anchor="middle" font-size="9">Redis node 0</text>
-    <rect x="565" y="66" width="118" height="30" rx="6" fill="#fdecea" stroke="#d93636"/>
-    <text x="624" y="86" text-anchor="middle" font-size="9">Redis node 1</text>
-    <rect x="565" y="104" width="118" height="30" rx="6" fill="#fdecea" stroke="#d93636"/>
-    <text x="624" y="124" text-anchor="middle" font-size="9">Redis node 2</text>
+    <rect x="565" y="28" width="118" height="30" rx="5" fill="#f7f8f9" stroke="#9aa0aa"/>
+    <text x="624" y="48" text-anchor="middle" font-size="9" fill="#16181d">Redis node 0</text>
+    <rect x="565" y="66" width="118" height="30" rx="5" fill="#f7f8f9" stroke="#9aa0aa"/>
+    <text x="624" y="86" text-anchor="middle" font-size="9" fill="#16181d">Redis node 1</text>
+    <rect x="565" y="104" width="118" height="30" rx="5" fill="#f7f8f9" stroke="#9aa0aa"/>
+    <text x="624" y="124" text-anchor="middle" font-size="9" fill="#16181d">Redis node 2</text>
 
-    <rect x="180" y="265" width="120" height="50" rx="9" fill="#eafaf1" stroke="#159a55"/>
-    <text x="240" y="286" text-anchor="middle" font-weight="700">Augmented Trie</text>
-    <text x="240" y="301" text-anchor="middle" font-size="8" fill="#5d6675">top-K per prefix</text>
+    <rect x="180" y="265" width="120" height="50" rx="7" fill="#ffffff" stroke="#3f6b53"/>
+    <text x="240" y="286" text-anchor="middle" font-weight="700" fill="#16181d">Augmented Trie</text>
+    <text x="240" y="301" text-anchor="middle" font-size="8" fill="#6b7280">top-K per prefix</text>
 
-    <rect x="350" y="258" width="116" height="30" rx="6" fill="#fff7e6" stroke="#d99100"/>
-    <text x="408" y="278" text-anchor="middle" font-size="9">Redis Streams</text>
-    <rect x="350" y="296" width="116" height="36" rx="6" fill="#fff7e6" stroke="#d99100"/>
-    <text x="408" y="312" text-anchor="middle" font-size="9" font-weight="700">Batch Worker</text>
-    <text x="408" y="324" text-anchor="middle" font-size="7.2" fill="#5d6675">aggregate·flush·decay</text>
+    <rect x="350" y="258" width="116" height="30" rx="5" fill="#f7f8f9" stroke="#9aa0aa"/>
+    <text x="408" y="278" text-anchor="middle" font-size="9" fill="#16181d">Redis Streams</text>
+    <rect x="350" y="296" width="116" height="36" rx="5" fill="#ffffff" stroke="#2f5d62"/>
+    <text x="408" y="312" text-anchor="middle" font-size="9" font-weight="700" fill="#16181d">Batch Worker</text>
+    <text x="408" y="324" text-anchor="middle" font-size="7.2" fill="#6b7280">aggregate·flush·decay</text>
 
-    <rect x="540" y="280" width="130" height="46" rx="9" fill="#f0f1f5" stroke="#5d6675"/>
-    <text x="605" y="300" text-anchor="middle" font-weight="700" font-size="9.5">Count Store</text>
-    <text x="605" y="314" text-anchor="middle" font-size="7.6" fill="#5d6675">source of truth</text>
+    <rect x="540" y="280" width="130" height="46" rx="7" fill="#f7f8f9" stroke="#9aa0aa"/>
+    <text x="605" y="300" text-anchor="middle" font-weight="700" font-size="9.5" fill="#16181d">Count Store</text>
+    <text x="605" y="314" text-anchor="middle" font-size="7.6" fill="#6b7280">source of truth</text>
 
-    <line x1="128" y1="175" x2="178" y2="175" stroke="#5d6675" marker-end="url(#a)"/>
-    <text x="153" y="169" text-anchor="middle" font-size="7.4" fill="#5d6675">prefix</text>
-    <line x1="300" y1="150" x2="408" y2="95" stroke="#3b5bdb" marker-end="url(#ab)"/>
-    <text x="360" y="116" text-anchor="middle" font-size="7.4" fill="#3b5bdb">route key</text>
-    <line x1="487" y1="66" x2="563" y2="46" stroke="#5d6675" marker-end="url(#a)"/>
-    <line x1="487" y1="80" x2="563" y2="82" stroke="#5d6675" marker-end="url(#a)"/>
-    <line x1="487" y1="95" x2="563" y2="116" stroke="#5d6675" marker-end="url(#a)"/>
-    <line x1="240" y1="230" x2="240" y2="263" stroke="#5d6675" stroke-dasharray="4 3" marker-end="url(#a)"/>
-    <text x="270" y="250" text-anchor="middle" font-size="7.4" fill="#5d6675">miss</text>
-    <line x1="300" y1="210" x2="348" y2="270" stroke="#5d6675" marker-end="url(#a)"/>
-    <text x="340" y="232" text-anchor="middle" font-size="7.4" fill="#5d6675">enqueue</text>
-    <line x1="408" y1="288" x2="408" y2="294" stroke="#d99100" marker-end="url(#a)"/>
-    <line x1="466" y1="308" x2="538" y2="302" stroke="#5d6675" marker-end="url(#a)"/>
-    <text x="505" y="298" text-anchor="middle" font-size="7.4" fill="#5d6675">write</text>
-    <path d="M462 300 C 510 210, 450 150, 448 120" fill="none" stroke="#159a55" stroke-dasharray="4 3" marker-end="url(#ag)"/>
-    <text x="520" y="180" text-anchor="middle" font-size="7.4" fill="#159a55">write-through top-K</text>
-    <path d="M605 280 C 540 215, 350 215, 305 292" fill="none" stroke="#5d6675" stroke-dasharray="2 3" marker-end="url(#a)"/>
-    <text x="450" y="232" text-anchor="middle" font-size="7.4" fill="#5d6675">seed on boot</text>
+    <line x1="128" y1="175" x2="178" y2="175" stroke="#6b7280" marker-end="url(#a)"/>
+    <text x="153" y="169" text-anchor="middle" font-size="7.4" fill="#6b7280">prefix</text>
+    <line x1="300" y1="150" x2="408" y2="95" stroke="#2f5d62" marker-end="url(#ab)"/>
+    <text x="360" y="116" text-anchor="middle" font-size="7.4" fill="#2f5d62">route key</text>
+    <line x1="487" y1="66" x2="563" y2="46" stroke="#6b7280" marker-end="url(#a)"/>
+    <line x1="487" y1="80" x2="563" y2="82" stroke="#6b7280" marker-end="url(#a)"/>
+    <line x1="487" y1="95" x2="563" y2="116" stroke="#6b7280" marker-end="url(#a)"/>
+    <line x1="240" y1="230" x2="240" y2="263" stroke="#6b7280" stroke-dasharray="4 3" marker-end="url(#a)"/>
+    <text x="270" y="250" text-anchor="middle" font-size="7.4" fill="#6b7280">miss</text>
+    <line x1="300" y1="210" x2="348" y2="270" stroke="#6b7280" marker-end="url(#a)"/>
+    <text x="340" y="232" text-anchor="middle" font-size="7.4" fill="#6b7280">enqueue</text>
+    <line x1="408" y1="288" x2="408" y2="294" stroke="#9aa0aa" marker-end="url(#a)"/>
+    <line x1="466" y1="308" x2="538" y2="302" stroke="#6b7280" marker-end="url(#a)"/>
+    <text x="505" y="298" text-anchor="middle" font-size="7.4" fill="#6b7280">write</text>
+    <path d="M462 300 C 510 210, 450 150, 448 120" fill="none" stroke="#3f6b53" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+    <text x="520" y="180" text-anchor="middle" font-size="7.4" fill="#3f6b53">write-through top-K</text>
+    <path d="M605 280 C 540 215, 350 215, 305 292" fill="none" stroke="#9aa0aa" stroke-dasharray="2 3" marker-end="url(#a)"/>
+    <text x="450" y="232" text-anchor="middle" font-size="7.4" fill="#9aa0aa">seed on boot</text>
   </svg>
-  <figcaption>Read path (blue): UI → API → ring → Redis. Write path (amber): API → Streams → worker → store,
-  with the worker writing fresh top-K back through the cache (green).</figcaption>
+  <figcaption>Read path: UI → API → ring → Redis. Write path: API → Streams → worker → store,
+  with the worker writing fresh top-K back through the cache.</figcaption>
 </figure>
 
 <div class="grp">
@@ -275,7 +296,7 @@ The API and worker are separate processes with separate Tries. The worker <stron
 to the shared Redis cache</strong> on every flush, so the API serves up-to-date suggestions without owning
 the live counts — the cache is the single cross-process serving surface.</div>
 
-<!-- ───────── 2. DATASET ───────── -->
+<!-- ═════════════ 2. DATASET ═════════════ -->
 <div class="block">
   <div class="sec"><span class="no">02</span><h2>Dataset — Source &amp; Loading</h2><span class="tag">120,000 rows</span></div>
 </div>
@@ -315,7 +336,7 @@ npm run dev</pre>
   <tr><td><code>recentCount</code> / <code>lastUpdated</code></td><td>derived</td><td>Added at load (start 0); support decayed recency &amp; lazy decay.</td></tr>
 </table>
 
-<!-- ───────── 3. API ───────── -->
+<!-- ═════════════ 3. API ═════════════ -->
 <div class="block">
   <div class="sec"><span class="no">03</span><h2>API Documentation</h2><span class="tag">6 endpoints</span></div>
   <p class="lead">All inputs normalized server-side (trim → lowercase → collapse whitespace → NFC) via one
@@ -379,7 +400,7 @@ npm run dev</pre>
   </div>
 </div>
 
-<!-- ───────── 4. DESIGN ───────── -->
+<!-- ═════════════ 4. DESIGN ═════════════ -->
 <div class="block">
   <div class="sec"><span class="no">04</span><h2>Design Choices &amp; Trade-offs</h2><span class="tag">Why each decision</span></div>
   <table class="data">
@@ -397,9 +418,9 @@ npm run dev</pre>
   <div>
     <h3 style="margin-top:4px">Read-heavy AND write-heavy</h3>
     <p class="small">Naively, one search writes the count <em>and</em> every prefix's top-K:</p>
-    <pre><span class="c">Naive:   1M×(1 + ~10) ≈ 11M writes/s   ✗</span>
+    <pre><span class="c">Naive:   1M×(1 + ~10) ≈ 11M writes/s   x</span>
 <span class="c">Batched: 1M + 10M/1000 ≈ 1.01M writes/s ✓</span>
-         <span class="c">~10× total, ~1000× on prefix writes</span></pre>
+         <span class="c">~10x total, ~1000x on prefix writes</span></pre>
     <p class="small">Only the <em>derived</em> data is batched; raw counts are always recorded — batching trades
     freshness for throughput, never correctness.</p>
   </div>
@@ -414,7 +435,7 @@ npm run dev</pre>
   </div>
 </div>
 
-<!-- ───────── 5. PERFORMANCE ───────── -->
+<!-- ═════════════ 5. PERFORMANCE ═════════════ -->
 <div class="block">
   <div class="sec"><span class="no">05</span><h2>Performance Report</h2><span class="tag">10k req · 3 Redis · warm</span></div>
   <div class="kpi-row">
@@ -450,10 +471,10 @@ npm run dev</pre>
   <h4>Failure handling (observed)</h4>
   <table class="data" style="margin-top:4px">
     <tr><th>Fault injected</th><th>Observed behavior</th><th>Status</th></tr>
-    <tr><td>Cache node stopped</td><td><code>/suggest</code> still returns via Trie fallback; debug shows the dead node.</td><td><span class="badge pass">NO OUTAGE</span></td></tr>
-    <tr><td>Queue Redis down</td><td><code>POST /search</code> returns 200 in ≈0.2 s (fire-and-forget); recovers on restart.</td><td><span class="badge pass">PASS</span></td></tr>
-    <tr><td>Stream / group deleted</td><td>Worker self-heals (recreates group), keeps processing.</td><td><span class="badge pass">PASS</span></td></tr>
-    <tr><td>Worker crash mid-flush</td><td>Un-acked entries replay (XACK only after durable write → at-least-once).</td><td><span class="badge pass">PASS</span></td></tr>
+    <tr><td>Cache node stopped</td><td><code>/suggest</code> still returns via Trie fallback; debug shows the dead node.</td><td><span class="badge">NO OUTAGE</span></td></tr>
+    <tr><td>Queue Redis down</td><td><code>POST /search</code> returns 200 in ≈0.2 s (fire-and-forget); recovers on restart.</td><td><span class="badge">PASS</span></td></tr>
+    <tr><td>Stream / group deleted</td><td>Worker self-heals (recreates group), keeps processing.</td><td><span class="badge">PASS</span></td></tr>
+    <tr><td>Worker crash mid-flush</td><td>Un-acked entries replay (XACK only after durable write → at-least-once).</td><td><span class="badge">PASS</span></td></tr>
   </table>
 </div>
 
@@ -461,11 +482,11 @@ npm run dev</pre>
   <h4>Summary against targets</h4>
   <table class="data" style="margin-top:4px">
     <tr><th>Metric</th><th>Result</th><th>Target</th><th>Verdict</th></tr>
-    <tr><td>Suggest p99 (server)</td><td>9.23 ms</td><td>&lt; 10 ms</td><td><span class="badge pass">MET</span></td></tr>
-    <tr><td>Cache hit ratio</td><td>97.95%</td><td>≥ 90%</td><td><span class="badge pass">MET</span></td></tr>
-    <tr><td>Write reduction</td><td>43× → 1000×</td><td>≥ 100×</td><td><span class="badge pass">MET</span></td></tr>
-    <tr><td>Dataset size</td><td>120,000</td><td>≥ 100,000</td><td><span class="badge pass">MET</span></td></tr>
-    <tr><td>Automated tests</td><td>40 / 40</td><td>green</td><td><span class="badge pass">PASS</span></td></tr>
+    <tr><td>Suggest p99 (server)</td><td>9.23 ms</td><td>&lt; 10 ms</td><td><span class="badge">MET</span></td></tr>
+    <tr><td>Cache hit ratio</td><td>97.95%</td><td>≥ 90%</td><td><span class="badge">MET</span></td></tr>
+    <tr><td>Write reduction</td><td>43× → 1000×</td><td>≥ 100×</td><td><span class="badge">MET</span></td></tr>
+    <tr><td>Dataset size</td><td>120,000</td><td>≥ 100,000</td><td><span class="badge">MET</span></td></tr>
+    <tr><td>Automated tests</td><td>40 / 40</td><td>green</td><td><span class="badge">PASS</span></td></tr>
   </table>
 </div>
 
@@ -474,7 +495,7 @@ npm run dev</pre>
 <code>npm run warm</code> → <code>npm run perf -- --requests 10000 --concurrency 20 --writeRatio 0.1</code>.
 Live counters at <code>GET /metrics</code>.</div>
 
-<div class="footer">Search Typeahead System · HLD Project Report · Bhuvanesh M S · github.com/Bhuvanesh66/Search-Typeahead</div>
+<div class="footer">Search Typeahead System · HLD Project Report · Bhuvanesh M S · 24BCS10134 · github.com/Bhuvanesh66/Search-Typeahead</div>
 
 </div>
 </body>
