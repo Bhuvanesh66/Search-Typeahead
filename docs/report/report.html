@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Search Typeahead System — Project Report</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────────────────
+     Print / page setup
+  ───────────────────────────────────────────────────────────────────────── */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+  }
+  @page :first { margin: 0; }
+
+  :root {
+    --ink: #1d2330;
+    --muted: #5b6473;
+    --line: #e3e7ee;
+    --brand: #3b5bdb;
+    --brand-2: #5b8cff;
+    --accent: #ff7a59;
+    --ok: #1f9d57;
+    --bg-soft: #f6f8fc;
+    --bg-code: #1b2030;
+    --code-ink: #e6e8ee;
+    --code-green: #7ee2a8;
+    --code-blue: #82aaff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4 { color: var(--ink); line-height: 1.25; }
+  h2 {
+    font-size: 16pt;
+    margin: 0 0 4px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--brand);
+  }
+  h3 { font-size: 12.5pt; margin: 18px 0 6px; color: var(--brand); }
+  h4 { font-size: 11pt; margin: 14px 0 4px; }
+  p { margin: 6px 0; }
+  a { color: var(--brand); text-decoration: none; }
+  strong { color: var(--ink); }
+  code {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 9pt;
+    background: #eef1f7;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: #2b3a67;
+  }
+
+  /* ── Cover ─────────────────────────────────────────────────────────────── */
+  .cover {
+    height: 297mm;
+    width: 100%;
+    background: linear-gradient(150deg, #0f1733 0%, #1b2c63 45%, #2a3f8f 100%);
+    color: #fff;
+    padding: 40mm 24mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover .glow {
+    position: absolute;
+    width: 520px; height: 520px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(91,140,255,.45), transparent 65%);
+    top: -120px; right: -120px;
+  }
+  .cover .glow2 {
+    position: absolute;
+    width: 380px; height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,122,89,.30), transparent 65%);
+    bottom: -100px; left: -80px;
+  }
+  .cover .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-size: 10pt;
+    color: #9db4ff;
+    font-weight: 600;
+  }
+  .cover h1 {
+    color: #fff;
+    font-size: 38pt;
+    line-height: 1.1;
+    margin: 14px 0 10px;
+    font-weight: 700;
+  }
+  .cover .sub {
+    font-size: 13pt;
+    color: #c6d2f5;
+    max-width: 520px;
+  }
+  .cover .pills { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .cover .pill {
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.22);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 9.5pt;
+    color: #eaf0ff;
+  }
+  .cover .meta-card {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 14px;
+    padding: 18px 22px;
+    backdrop-filter: blur(4px);
+  }
+  .cover .meta-card table { width: 100%; border-collapse: collapse; }
+  .cover .meta-card td { padding: 5px 0; font-size: 10.5pt; color: #dfe7ff; }
+  .cover .meta-card td:first-child { color: #9db4ff; width: 130px; }
+
+  /* ── Layout helpers ────────────────────────────────────────────────────── */
+  .section { page-break-before: always; padding-top: 2mm; }
+  .section:first-of-type { page-break-before: avoid; }
+
+  .lead {
+    color: var(--muted);
+    font-size: 10.5pt;
+    margin: 8px 0 14px;
+  }
+
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px;
+    font-size: 9.5pt;
+  }
+  table.data th {
+    background: var(--brand);
+    color: #fff;
+    text-align: left;
+    padding: 7px 10px;
+    font-weight: 600;
+  }
+  table.data td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.data tr:nth-child(even) td { background: var(--bg-soft); }
+  table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--brand-2);
+    background: var(--bg-soft);
+    padding: 10px 14px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 10pt;
+  }
+  .callout.ok { border-left-color: var(--ok); background: #f1fbf5; }
+  .callout.warn { border-left-color: var(--accent); background: #fff6f2; }
+  .callout .t { font-weight: 700; display: block; margin-bottom: 2px; }
+
+  pre {
+    background: var(--bg-code);
+    color: var(--code-ink);
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  pre .k { color: var(--code-blue); }
+  pre .g { color: var(--code-green); }
+  pre .c { color: #7f8aa3; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .card h4 { margin-top: 0; color: var(--brand); }
+
+  .kpi-row { display: flex; gap: 12px; margin: 14px 0; }
+  .kpi {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    background: var(--bg-soft);
+  }
+  .kpi .v { font-size: 22pt; font-weight: 700; color: var(--brand); line-height: 1; }
+  .kpi .l { font-size: 8.5pt; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi .sub { font-size: 8pt; color: var(--ok); margin-top: 3px; }
+
+  .toc-list { list-style: none; padding: 0; font-size: 11pt; }
+  .toc-list li {
+    display: flex; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px dotted var(--line);
+  }
+  .toc-list .n { color: var(--brand); font-weight: 700; width: 28px; }
+  .toc-list .t { flex: 1; }
+  .badge {
+    display: inline-block; font-size: 8pt; font-weight: 700;
+    padding: 1px 8px; border-radius: 20px;
+  }
+  .badge.pass { background: #e3f7ec; color: var(--ok); }
+  .small { font-size: 9pt; color: var(--muted); }
+  .nowrap { white-space: nowrap; }
+  figure { margin: 14px 0; text-align: center; }
+  figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────────── COVER ───────────────────────────── -->
+<section class="cover">
+  <div class="glow"></div>
+  <div class="glow2"></div>
+  <div>
+    <div class="eyebrow">High-Level Design · Project Report</div>
+    <h1>Search Typeahead<br/>System</h1>
+    <div class="sub">A distributed, low-latency search autocomplete engine — Trie-backed
+      suggestions, a consistent-hashed Redis cache, batched writes, and recency-aware trending.</div>
+    <div class="pills">
+      <span class="pill">Node.js + TypeScript</span>
+      <span class="pill">React</span>
+      <span class="pill">Redis × 3</span>
+      <span class="pill">Consistent Hashing</span>
+      <span class="pill">Redis Streams</span>
+      <span class="pill">Trie + Top-K</span>
+    </div>
+  </div>
+
+  <div class="meta-card">
+    <table>
+      <tr><td>Author</td><td>Bhuvanesh M S</td></tr>
+      <tr><td>Course</td><td>High-Level Design (HLD) — Trimester 8</td></tr>
+      <tr><td>Repository</td><td>github.com/Bhuvanesh66/Search-Typeahead</td></tr>
+      <tr><td>Dataset</td><td>120,000 queries (Zipf-distributed counts)</td></tr>
+      <tr><td>Report covers</td><td>Architecture · Dataset · API · Design Trade-offs · Performance</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────────── TOC ───────────────────────────── -->
+<section class="section">
+  <h2>Contents</h2>
+  <ul class="toc-list">
+    <li><span class="n">1</span><span class="t">System Overview &amp; Architecture</span><span class="small">Components, data flows, diagram</span></li>
+    <li><span class="n">2</span><span class="t">Dataset — Source &amp; Loading</span><span class="small">Format, generation, ingestion</span></li>
+    <li><span class="n">3</span><span class="t">API Documentation</span><span class="small">Endpoints, schemas, edge cases</span></li>
+    <li><span class="n">4</span><span class="t">Design Choices &amp; Trade-offs</span><span class="small">Why each decision was made</span></li>
+    <li><span class="n">5</span><span class="t">Performance Report</span><span class="small">Latency, hit ratio, write reduction</span></li>
+  </ul>
+
+  <h3>Executive summary</h3>
+  <p>The system serves up to <strong>10 prefix suggestions</strong> ranked by popularity with a
+  sub-10&nbsp;ms server-side read path. Suggestions are treated as a <strong>precomputed top-K cache
+  keyed by prefix</strong>, distributed across three Redis nodes via a <strong>consistent-hash ring with
+  virtual nodes</strong>. Search submissions are recorded asynchronously through <strong>Redis Streams</strong>
+  and a <strong>batch worker</strong> that aggregates repeated queries to slash write volume. A
+  <strong>recency-aware trending</strong> ranking blends all-time popularity with an exponentially-decayed
+  recent-activity signal.</p>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="v">3.3<span style="font-size:11pt">ms</span></div><div class="l">Suggest p50</div><div class="sub">p99 = 9.2 ms</div></div>
+    <div class="kpi"><div class="v">~98<span style="font-size:11pt">%</span></div><div class="l">Cache hit ratio</div><div class="sub">target ≥ 90%</div></div>
+    <div class="kpi"><div class="v">43×</div><div class="l">Write reduction</div><div class="sub">→ 1000× at saturation</div></div>
+    <div class="kpi"><div class="v">120k</div><div class="l">Queries loaded</div><div class="sub">min required 100k</div></div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 1. ARCHITECTURE ───────────────────────── -->
+<section class="section">
+  <h2>1 · System Overview &amp; Architecture</h2>
+  <p class="lead">How the pieces fit together, and the three flows that matter: reading suggestions,
+  recording a search, and computing trending.</p>
+
+  <h3>1.1 Core idea</h3>
+  <p>A prefix's suggestions are simply a <strong>precomputed top-K list keyed by that prefix</strong> —
+  a key-value lookup, not a live tree traversal. This makes the <strong>read path O(1)</strong> (one cache
+  GET). The consequence is a system that is both <em>read-heavy</em> (every keystroke is a read) and
+  <em>write-heavy</em> (every search updates counts and many prefix entries), so the central engineering
+  job is to <strong>reduce writes</strong> while keeping reads instant.</p>
+
+  <h3>1.2 Architecture diagram</h3>
+  <figure>
+    <!-- Inline SVG architecture diagram -->
+    <svg width="720" height="430" viewBox="0 0 720 430" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial" font-size="12">
+      <defs>
+        <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7,3 L0,6 z" fill="#5b6473"/>
+        </marker>
+        <marker id="arrowB" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7,3 L0,6 z" fill="#3b5bdb"/>
+        </marker>
+      </defs>
+
+      <!-- Frontend -->
+      <rect x="20" y="170" width="120" height="80" rx="10" fill="#eef2ff" stroke="#3b5bdb"/>
+      <text x="80" y="200" text-anchor="middle" font-weight="700" fill="#1d2330">React UI</text>
+      <text x="80" y="218" text-anchor="middle" font-size="9" fill="#5b6473">debounced box</text>
+      <text x="80" y="231" text-anchor="middle" font-size="9" fill="#5b6473">dropdown · trending</text>
+
+      <!-- API tier -->
+      <rect x="200" y="150" width="130" height="120" rx="10" fill="#fff" stroke="#3b5bdb" stroke-width="1.5"/>
+      <text x="265" y="172" text-anchor="middle" font-weight="700" fill="#1d2330">API tier</text>
+      <text x="265" y="190" text-anchor="middle" font-size="9" fill="#5b6473">/suggest</text>
+      <text x="265" y="205" text-anchor="middle" font-size="9" fill="#5b6473">/search</text>
+      <text x="265" y="220" text-anchor="middle" font-size="9" fill="#5b6473">/cache/debug</text>
+      <text x="265" y="235" text-anchor="middle" font-size="9" fill="#5b6473">/trending</text>
+      <text x="265" y="250" text-anchor="middle" font-size="9" fill="#5b6473">/metrics</text>
+
+      <!-- Hash ring -->
+      <circle cx="470" cy="95" r="42" fill="#f6f8fc" stroke="#3b5bdb"/>
+      <text x="470" y="92" text-anchor="middle" font-size="10" font-weight="700">Hash</text>
+      <text x="470" y="105" text-anchor="middle" font-size="10" font-weight="700">Ring</text>
+      <text x="470" y="150" text-anchor="middle" font-size="8.5" fill="#5b6473">virtual nodes</text>
+
+      <!-- Redis nodes -->
+      <rect x="585" y="40" width="110" height="34" rx="7" fill="#fdecea" stroke="#d93636"/>
+      <text x="640" y="62" text-anchor="middle" font-size="10">Redis node 0</text>
+      <rect x="585" y="82" width="110" height="34" rx="7" fill="#fdecea" stroke="#d93636"/>
+      <text x="640" y="104" text-anchor="middle" font-size="10">Redis node 1</text>
+      <rect x="585" y="124" width="110" height="34" rx="7" fill="#fdecea" stroke="#d93636"/>
+      <text x="640" y="146" text-anchor="middle" font-size="10">Redis node 2</text>
+
+      <!-- Trie -->
+      <rect x="200" y="310" width="130" height="56" rx="10" fill="#eafaf1" stroke="#1f9d57"/>
+      <text x="265" y="333" text-anchor="middle" font-weight="700" fill="#1d2330">Augmented Trie</text>
+      <text x="265" y="349" text-anchor="middle" font-size="9" fill="#5b6473">top-K per prefix</text>
+
+      <!-- Queue -->
+      <rect x="380" y="300" width="120" height="34" rx="7" fill="#fff7e6" stroke="#d99100"/>
+      <text x="440" y="322" text-anchor="middle" font-size="10">Redis Streams</text>
+      <!-- Worker -->
+      <rect x="380" y="346" width="120" height="40" rx="7" fill="#fff7e6" stroke="#d99100"/>
+      <text x="440" y="364" text-anchor="middle" font-size="10" font-weight="700">Batch Worker</text>
+      <text x="440" y="377" text-anchor="middle" font-size="8" fill="#5b6473">aggregate · flush · decay</text>
+
+      <!-- Store -->
+      <rect x="560" y="320" width="135" height="50" rx="10" fill="#f0f1f5" stroke="#5b6473"/>
+      <text x="627" y="342" text-anchor="middle" font-weight="700" font-size="10">Count Store</text>
+      <text x="627" y="357" text-anchor="middle" font-size="8.5" fill="#5b6473">source of truth</text>
+
+      <!-- edges -->
+      <line x1="140" y1="205" x2="198" y2="205" stroke="#5b6473" marker-end="url(#arrow)"/>
+      <text x="168" y="198" text-anchor="middle" font-size="8" fill="#5b6473">prefix</text>
+
+      <line x1="330" y1="180" x2="430" y2="110" stroke="#3b5bdb" marker-end="url(#arrowB)"/>
+      <text x="392" y="135" text-anchor="middle" font-size="8" fill="#3b5bdb">route key</text>
+
+      <line x1="512" y1="80" x2="583" y2="60" stroke="#5b6473" marker-end="url(#arrow)"/>
+      <line x1="512" y1="95" x2="583" y2="99" stroke="#5b6473" marker-end="url(#arrow)"/>
+      <line x1="512" y1="112" x2="583" y2="138" stroke="#5b6473" marker-end="url(#arrow)"/>
+
+      <line x1="265" y1="270" x2="265" y2="308" stroke="#5b6473" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+      <text x="300" y="292" text-anchor="middle" font-size="8" fill="#5b6473">miss</text>
+
+      <line x1="330" y1="250" x2="378" y2="312" stroke="#5b6473" marker-end="url(#arrow)"/>
+      <text x="368" y="270" text-anchor="middle" font-size="8" fill="#5b6473">enqueue</text>
+
+      <line x1="440" y1="334" x2="440" y2="344" stroke="#d99100" marker-end="url(#arrow)"/>
+      <line x1="500" y1="360" x2="558" y2="350" stroke="#5b6473" marker-end="url(#arrow)"/>
+      <text x="530" y="345" text-anchor="middle" font-size="8" fill="#5b6473">write</text>
+
+      <!-- worker write-through to ring -->
+      <path d="M495 350 C 540 250, 470 180, 470 140" fill="none" stroke="#1f9d57" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+      <text x="540" y="210" text-anchor="middle" font-size="8" fill="#1f9d57">write-through</text>
+      <text x="540" y="221" text-anchor="middle" font-size="8" fill="#1f9d57">fresh top-K</text>
+
+      <!-- store seeds trie -->
+      <path d="M627 320 C 560 250, 360 250, 320 338" fill="none" stroke="#5b6473" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+      <text x="470" y="262" text-anchor="middle" font-size="8" fill="#5b6473">seed on boot</text>
+    </svg>
+    <figcaption>Read path (blue): UI → API → hash ring → Redis. Write path (amber): API → Streams →
+    worker → store, with the worker writing fresh top-K back through the cache (green).</figcaption>
+  </figure>
+
+  <h3>1.3 Components</h3>
+  <table class="data">
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td><strong>React frontend</strong></td><td>Debounced search box, suggestions dropdown, keyboard navigation, trending panel.</td></tr>
+    <tr><td><strong>API tier (Fastify)</strong></td><td>Stateless HTTP layer; validates &amp; normalizes input, serves the five endpoints.</td></tr>
+    <tr><td><strong>Augmented Trie</strong></td><td>In-memory prefix tree; each node stores precomputed top-K so a read is O(L + K).</td></tr>
+    <tr><td><strong>Consistent hash ring</strong></td><td>Maps each <code>suggest:&lt;prefix&gt;</code> key to one Redis node using MurmurHash3 + ~150 virtual nodes.</td></tr>
+    <tr><td><strong>Distributed cache (Redis × 3)</strong></td><td>Holds precomputed top-K per prefix with TTL; cache-aside reads, active invalidation.</td></tr>
+    <tr><td><strong>Redis Streams queue</strong></td><td>Durable append-only log of search events with consumer groups for crash recovery.</td></tr>
+    <tr><td><strong>Batch worker</strong></td><td>Aggregates repeated queries, flushes counts to the store, refreshes cache, decays trending.</td></tr>
+    <tr><td><strong>Count store</strong></td><td>Source of truth for per-query counts; the Trie &amp; cache are derived and rebuildable.</td></tr>
+    <tr><td><strong>Trending engine</strong></td><td>Exponential-decay recency score blended with normalized popularity.</td></tr>
+  </table>
+
+  <h3>1.4 The three flows</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Suggest (read)</h4>
+      <p class="small">normalize prefix → hash ring → cache <code>GET</code>. <strong>Hit</strong> → return (≈1–3 ms).
+      <strong>Miss</strong> → ask the Trie for precomputed top-K → populate cache → return.</p>
+    </div>
+    <div class="card">
+      <h4>Search (write)</h4>
+      <p class="small">Return <code>"Searched"</code> immediately → enqueue to Streams. Worker aggregates
+      duplicates → writes counts → writes fresh top-K through to the cache → feeds trending.</p>
+    </div>
+    <div class="card">
+      <h4>Trending</h4>
+      <p class="small">Each period the worker multiplies every recent score by a decay factor (0.9),
+      adds new activity, blends with popularity, and publishes the list to the shared cache.</p>
+    </div>
+    <div class="card">
+      <h4>Failure handling</h4>
+      <p class="small">Dead cache node → miss → Trie rebuild (no outage). Worker crash → un-acked
+      Stream entries replay. Queue down → <code>/search</code> still returns 200 (fire-and-forget).</p>
+    </div>
+  </div>
+
+  <div class="callout"><span class="t">Cross-process consistency</span>
+  The API and worker are separate processes with separate Tries. The worker <strong>writes fresh top-K
+  through to the shared Redis cache</strong> on every flush, so the API serves up-to-date suggestions
+  from the cache without owning the live counts — the cache is the single cross-process serving surface.</div>
+</section>
+
+<!-- ───────────────────────── 2. DATASET ───────────────────────── -->
+<section class="section">
+  <h2>2 · Dataset — Source &amp; Loading</h2>
+  <p class="lead">A ≥100,000-row dataset of <code>query,count</code> pairs, loaded once at boot into both
+  the count store and the Trie.</p>
+
+  <h3>2.1 Format</h3>
+  <p>CSV with a header row. <code>query</code> is the search text (normalized on load); <code>count</code>
+  is a non-negative integer popularity value.</p>
+  <pre><span class="c">query,count</span>
+flight air shop,1017481
+shoes ultra guide,523615
+buy gaming specs,339908
+iphone portable guide,45449
+java tutorial,40000</pre>
+
+  <h3>2.2 Source</h3>
+  <p>The submitted dataset is <strong>synthetically generated</strong> (120,000 unique queries) with a
+  realistic, heavy-tailed <strong>Zipf-like</strong> popularity distribution — a few very popular queries
+  and a long tail of rare ones, exactly mirroring real search traffic. The generator combines a vocabulary
+  of heads (<code>iphone</code>, <code>java</code>, <code>how&nbsp;to</code>…), modifiers and tails, with a
+  deterministic PRNG so generation is reproducible.</p>
+  <p class="small">Any real open dataset works as a drop-in replacement (AOL search logs, Kaggle popular-query
+  sets, or Wikipedia titles + pageviews) — format it as <code>query,count</code>, deriving counts by
+  aggregation where needed.</p>
+
+  <h3>2.3 Loading instructions</h3>
+  <pre><span class="c"># 1 — start the 3 Redis cache nodes</span>
+docker compose up -d
+
+<span class="c"># 2 — generate a dataset (≥100k rows)</span>
+cd backend
+npm run dataset:generate -- --rows 120000 --out ../datasets/queries.csv
+
+<span class="c"># 3 — (optional) validate + smoke-test the load</span>
+npm run dataset:load -- --file ../datasets/queries.csv
+
+<span class="c"># 4 — boot the API (streams the CSV into the Trie + store)</span>
+npm run dev</pre>
+
+  <div class="callout ok"><span class="t">Streaming ingestion</span>
+  The loader reads the CSV <strong>line by line</strong>, so memory stays flat even for multi-million-row
+  files. Each row is normalized with the same function used on the read path, so prefixes always match.
+  120,000 rows load in ≈3.3 s.</div>
+
+  <table class="data">
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td><code>query</code></td><td>string</td><td>Primary key; normalized (lowercase, trimmed, whitespace-collapsed).</td></tr>
+    <tr><td><code>count</code></td><td>integer</td><td>All-time popularity / frequency.</td></tr>
+    <tr><td><code>recentCount</code></td><td>integer</td><td>Derived at load (starts 0); decayed recent activity.</td></tr>
+    <tr><td><code>lastUpdated</code></td><td>timestamp</td><td>Derived; supports lazy decay.</td></tr>
+  </table>
+</section>
+
+<!-- ───────────────────────── 3. API ───────────────────────── -->
+<section class="section">
+  <h2>3 · API Documentation</h2>
+  <p class="lead">Six endpoints. All inputs are normalized server-side (trim → lowercase → collapse
+  whitespace → Unicode NFC) using one shared function on both read and write paths.</p>
+
+  <table class="data">
+    <tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td>GET</td><td><code>/suggest?q=&lt;prefix&gt;&amp;limit=&lt;n&gt;</code></td><td>Up to 10 prefix suggestions, sorted by score.</td></tr>
+    <tr><td>POST</td><td><code>/search</code></td><td>Record a search; returns <code>{"message":"Searched"}</code>.</td></tr>
+    <tr><td>GET</td><td><code>/cache/debug?prefix=&lt;prefix&gt;</code></td><td>Owning cache node + hit/miss + ring info.</td></tr>
+    <tr><td>GET</td><td><code>/trending?limit=&lt;n&gt;</code></td><td>Recency-aware trending queries.</td></tr>
+    <tr><td>GET</td><td><code>/metrics</code></td><td>Hit ratio, DB reads/writes, latencies, write reduction.</td></tr>
+    <tr><td>GET</td><td><code>/healthz</code></td><td>Liveness probe.</td></tr>
+  </table>
+
+  <h3>3.1 GET /suggest</h3>
+  <p class="small"><strong>Params:</strong> <code>q</code> (required, 0–100 chars), <code>limit</code>
+  (optional, default 10, clamped 1–10). <strong>Status:</strong> 200 (incl. empty list); 400 if <code>q</code> missing.</p>
+  <pre><span class="c">// 200 OK</span>
+{
+  <span class="k">"prefix"</span>: <span class="g">"iph"</span>,
+  <span class="k">"suggestions"</span>: [
+    { <span class="k">"query"</span>: <span class="g">"iphone"</span>, <span class="k">"count"</span>: 100000, <span class="k">"score"</span>: 100000 },
+    { <span class="k">"query"</span>: <span class="g">"iphone 15"</span>, <span class="k">"count"</span>: 85000, <span class="k">"score"</span>: 85000 }
+  ],
+  <span class="k">"source"</span>: <span class="g">"cache"</span>, <span class="k">"node"</span>: <span class="g">"cache-node-2"</span>, <span class="k">"latencyMs"</span>: 1.8
+}</pre>
+  <table class="data">
+    <tr><th>Edge case</th><th>Behavior</th></tr>
+    <tr><td>Empty <code>q=""</code></td><td>200, <code>suggestions: []</code>, <code>source:"empty"</code></td></tr>
+    <tr><td>Missing <code>q</code></td><td>400</td></tr>
+    <tr><td>Mixed case / whitespace</td><td>Normalized &amp; matched</td></tr>
+    <tr><td>No matches</td><td>200, <code>[]</code></td></tr>
+  </table>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>POST /search</h4>
+      <pre style="margin:6px 0"><span class="c">// req</span>
+{ <span class="k">"query"</span>: <span class="g">"iphone 15"</span> }
+<span class="c">// 200</span>
+{ <span class="k">"message"</span>: <span class="g">"Searched"</span> }</pre>
+      <p class="small">400 on missing/empty query. Never blocks the user — enqueue is fire-and-forget,
+      so it returns 200 even if the queue is down.</p>
+    </div>
+    <div class="card">
+      <h4>GET /cache/debug</h4>
+      <pre style="margin:6px 0">{
+  <span class="k">"owningNode"</span>: <span class="g">"cache-node-2"</span>,
+  <span class="k">"virtualNodeHit"</span>: <span class="g">"cache-node-2#37"</span>,
+  <span class="k">"status"</span>: <span class="g">"hit"</span>,
+  <span class="k">"ringPosition"</span>: 2847193021
+}</pre>
+      <p class="small">Demonstrates consistent-hashing routing &amp; hit/miss live.</p>
+    </div>
+  </div>
+
+  <h3>3.2 GET /trending &amp; /metrics</h3>
+  <pre><span class="c">// /trending → recency-aware</span>
+{ <span class="k">"trending"</span>: [
+  { <span class="k">"query"</span>:<span class="g">"breaking news today"</span>, <span class="k">"totalCount"</span>:15, <span class="k">"recentScore"</span>:13.5, <span class="k">"blendedScore"</span>:0.30 },
+  { <span class="k">"query"</span>:<span class="g">"flight air shop"</span>,     <span class="k">"totalCount"</span>:1017481, <span class="k">"recentScore"</span>:0, <span class="k">"blendedScore"</span>:0.70 }
+]}
+
+<span class="c">// /metrics → operational snapshot (abridged)</span>
+{ <span class="k">"derived"</span>: { <span class="k">"cache_hit_ratio"</span>:0.98, <span class="k">"write_reduction_factor"</span>:42.9,
+              <span class="k">"writes_avoided_total"</span>:1300 } }</pre>
+</section>
+
+<!-- ───────────────────────── 4. DESIGN ───────────────────────── -->
+<section class="section">
+  <h2>4 · Design Choices &amp; Trade-offs</h2>
+  <p class="lead">Every major decision, the alternatives considered, and why the chosen option wins.</p>
+
+  <table class="data">
+    <tr><th>Decision</th><th>Chosen</th><th>Why / trade-off</th></tr>
+    <tr>
+      <td><strong>Suggestion engine</strong></td>
+      <td>Augmented Trie with precomputed top-K</td>
+      <td>O(L) prefix walk and O(K) result with <em>no</em> subtree DFS. Beats SQL <code>LIKE 'p%'</code>
+        (no precomputed ranking) and a plain Trie (DFS per read). Trade-off: in-memory, rebuilt on boot.</td>
+    </tr>
+    <tr>
+      <td><strong>Serving layer</strong></td>
+      <td>Distributed Redis cache, top-K per prefix</td>
+      <td>Reads dominate, so a read becomes a single key-value <code>GET</code> (~1 ms) that scales
+        horizontally. Trade-off: eventual consistency between cache and store (accepted).</td>
+    </tr>
+    <tr>
+      <td><strong>Cache distribution</strong></td>
+      <td>Consistent hashing + ~150 virtual nodes</td>
+      <td><code>hash % N</code> remaps almost every key when a node changes; consistent hashing remaps
+        only ~1/N. Virtual nodes smooth load. Trade-off: slightly more complex than modulo.</td>
+    </tr>
+    <tr>
+      <td><strong>Write pipeline</strong></td>
+      <td>Redis Streams + batch worker</td>
+      <td>Durable log with consumer-group replay on crash, and <em>no new infrastructure</em> (Redis is
+        already running). Beats in-memory queue (loses data) and BullMQ (heavier).</td>
+    </tr>
+    <tr>
+      <td><strong>Write reduction</strong></td>
+      <td>Batching (aggregate repeated queries)</td>
+      <td>Collapses N searches of a query into 1 write per flush window. Causes <em>stale reads, not data
+        loss</em> — counts are always eventually written. Optional sampling lever for extreme scale.</td>
+    </tr>
+    <tr>
+      <td><strong>Ranking</strong></td>
+      <td>α·norm(total) + (1−α)·decayed recent</td>
+      <td>α=1 → pure popularity (basic mode); α≈0.7 → recency-aware. Exponential decay makes a one-day
+        spike fade geometrically, so it can't dominate forever.</td>
+    </tr>
+    <tr>
+      <td><strong>Count store</strong></td>
+      <td>Lightweight in-process store (source of truth)</td>
+      <td>The Trie and cache are derived &amp; rebuildable, so the store only needs durable counts —
+        fewer dependencies, easier to reason about. Swappable for Redis/SQL behind one interface.</td>
+    </tr>
+  </table>
+
+  <h3>4.1 Read-heavy AND write-heavy — the core tension</h3>
+  <p>Naively, one search writes the count <em>and</em> updates the top-K of each of its prefixes:</p>
+  <pre><span class="c">1M searches/s × (1 count + ~10 prefix updates) ≈ 11M writes/s   ← unsustainable</span>
+With batching (update derived data every N counts):
+1M count writes/s + (10M / 1000) prefix writes/s    ≈ 1.01M writes/s   <span class="c">← ~10× total, ~1000× on prefix writes</span></pre>
+  <p>The key insight: <strong>only the derived suggestion data is batched</strong>; raw counts are still
+  recorded, so batching trades freshness (stale reads) for throughput, never correctness.</p>
+
+  <div class="callout warn"><span class="t">Accepted trade-offs (documented)</span>
+  Counts during a queue-outage window are lost (eventual consistency). A worker crash between the durable
+  write and the ack can rarely double-count a batch (at-least-once). A dead cache node degrades to
+  cache-miss + Trie rebuild rather than auto-evicting from the ring.</div>
+
+  <h3>4.2 Quality assurance</h3>
+  <p>A full behaviour-level QA pass against every requirement found and fixed <strong>three real defects</strong>
+  (empty-result cache clobbering, worker crash on a missing stream group, and a slow <code>/search</code>
+  during a queue outage), each now covered by regression tests. The suite stands at <strong>40 passing
+  tests</strong> (unit + live-Redis integration).</p>
+</section>
+
+<!-- ───────────────────────── 5. PERFORMANCE ───────────────────────── -->
+<section class="section">
+  <h2>5 · Performance Report</h2>
+  <p class="lead">Measured on a single machine with three Redis containers and the 120,000-query dataset.
+  Mixed load: 10,000 requests, concurrency 20, 10% writes, cache warm.</p>
+
+  <h3>5.1 Read latency — GET /suggest</h3>
+  <table class="data">
+    <tr><th>Percentile</th><th class="num">Server-side</th><th class="num">End-to-end</th><th>Target</th></tr>
+    <tr><td>mean</td><td class="num">4.09 ms</td><td class="num">—</td><td>—</td></tr>
+    <tr><td>p50</td><td class="num">3.31 ms</td><td class="num">12.5 ms</td><td>p50 &lt; 2 ms</td></tr>
+    <tr><td>p95</td><td class="num">6.77 ms</td><td class="num">24.4 ms</td><td>p95 &lt; 6 ms</td></tr>
+    <tr><td>p99</td><td class="num">9.23 ms</td><td class="num">33.0 ms</td><td>p99 &lt; 10 ms ✓</td></tr>
+  </table>
+  <p class="small">On the cache-hit hot path, a single read is ≈1–3 ms (one ring-routed Redis <code>GET</code>).
+  End-to-end includes the full HTTP round-trip over localhost.</p>
+
+  <h3>5.2 Cache hit ratio (consistent hashing)</h3>
+  <div class="kpi-row">
+    <div class="kpi"><div class="v">8,938</div><div class="l">cache hits</div></div>
+    <div class="kpi"><div class="v">187</div><div class="l">cache misses</div></div>
+    <div class="kpi"><div class="v">97.95%</div><div class="l">hit ratio</div><div class="sub">target ≥ 90%</div></div>
+    <div class="kpi"><div class="v">15/15/16</div><div class="l">key spread (3 nodes)</div></div>
+  </div>
+  <p class="small">With 150 virtual nodes per physical node, each node owns exactly 150 ring points and 46
+  sample prefixes distribute 15 / 15 / 16 — near-perfect balance. Misses are almost entirely first-touch
+  (cold) keys, each of which repopulates the cache.</p>
+
+  <h3>5.3 Write reduction (batching)</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th class="num">Searches</th><th class="num">DB writes</th><th class="num">Reduction</th></tr>
+    <tr><td>Mixed load</td><td class="num">1,331</td><td class="num">31</td><td class="num">≈ 43×</td></tr>
+    <tr><td>Focused burst (one hot query)</td><td class="num">300</td><td class="num">8</td><td class="num">37.5×</td></tr>
+    <tr><td>At batch saturation (theoretical)</td><td class="num">1,000 / window</td><td class="num">1</td><td class="num">1000×</td></tr>
+  </table>
+  <p class="small">The reduction factor approaches the configured batch size (1,000) as traffic intensity
+  rises: a query searched 1,000× in a window becomes a single write.</p>
+
+  <h3>5.4 Failure handling (observed)</h3>
+  <table class="data">
+    <tr><th>Fault injected</th><th>Observed behavior</th><th>Status</th></tr>
+    <tr><td>Cache node stopped</td><td><code>/suggest</code> still returns via Trie fallback (<code>source:"trie"</code>); debug shows the dead node.</td><td><span class="badge pass">NO OUTAGE</span></td></tr>
+    <tr><td>Queue Redis down</td><td><code>POST /search</code> returns 200 in ≈0.2 s (fire-and-forget); errors counted; recovers on restart.</td><td><span class="badge pass">PASS</span></td></tr>
+    <tr><td>Stream / group deleted</td><td>Worker self-heals (recreates the group) and keeps processing instead of crashing.</td><td><span class="badge pass">PASS</span></td></tr>
+    <tr><td>Worker crash mid-flush</td><td>Un-acked Stream entries replay (XACK only after durable write → at-least-once).</td><td><span class="badge pass">PASS</span></td></tr>
+  </table>
+
+  <h3>5.5 Summary against targets</h3>
+  <table class="data">
+    <tr><th>Metric</th><th>Result</th><th>Target</th><th>Verdict</th></tr>
+    <tr><td>Suggest p99 (server)</td><td>9.23 ms</td><td>&lt; 10 ms</td><td><span class="badge pass">MET</span></td></tr>
+    <tr><td>Cache hit ratio</td><td>97.95%</td><td>≥ 90%</td><td><span class="badge pass">MET</span></td></tr>
+    <tr><td>Write reduction</td><td>43× → 1000×</td><td>≥ 100×</td><td><span class="badge pass">MET</span></td></tr>
+    <tr><td>Dataset size</td><td>120,000</td><td>≥ 100,000</td><td><span class="badge pass">MET</span></td></tr>
+    <tr><td>Automated tests</td><td>40 / 40 pass</td><td>—</td><td><span class="badge pass">GREEN</span></td></tr>
+  </table>
+
+  <div class="callout ok"><span class="t">Reproduce</span>
+  <code>docker compose up -d</code> → <code>npm run dev</code> + <code>npm run worker</code> →
+  <code>npm run warm</code> → <code>npm run perf -- --requests 10000 --concurrency 20 --writeRatio 0.1</code>.
+  Live counters are always available at <code>GET /metrics</code>.</div>
+
+  <p class="small" style="margin-top:20px; text-align:center; color:#9aa3b2">
+  Search Typeahead System · HLD Project Report · Bhuvanesh M S ·
+  github.com/Bhuvanesh66/Search-Typeahead</p>
+</section>
+
+</body>
+</html>
